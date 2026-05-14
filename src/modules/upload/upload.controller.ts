@@ -1,0 +1,50 @@
+import {
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+  Body,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadService } from './upload.service';
+import { UploadResumeDto } from './dto/upload-resume.dto';
+
+@Controller('upload')
+export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
+  /**
+   * POST /api/upload
+   * Multipart form-data fields:
+   *   - file: PDF file
+   *   - userId: string (UUID)
+   *   - resumeId: string (UUID)
+   *   - variantId: string (UUID)
+   */
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype !== 'application/pdf') {
+          return cb(new BadRequestException('Only PDF files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UploadResumeDto,
+  ) {
+    if (!file) throw new BadRequestException('File is required');
+
+    return this.uploadService.uploadAndCreateVersion(
+      file,
+      dto.userId,
+      dto.resumeId,
+      dto.variantId,
+    );
+  }
+}
