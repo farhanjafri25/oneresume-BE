@@ -13,6 +13,7 @@ model User {
   id        String   @id @default(uuid())
   username  String   @unique
   email     String   @unique
+  password  String   // bcrypt hash — never returned in API responses
   createdAt DateTime @default(now())
 
   resumes Resume[]
@@ -50,8 +51,8 @@ model Version {
   id            String   @id @default(uuid())
   variantId     String
   versionNumber Int      // auto-incremented per variant
-  fileUrl       String   // Cloudinary secure URL
-  publicId      String   // Cloudinary public_id
+  fileUrl       String   // UploadThing file URL
+  publicId      String   // UploadThing file key
   createdAt     DateTime @default(now())
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)

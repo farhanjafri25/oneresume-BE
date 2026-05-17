@@ -7,6 +7,7 @@ import { VersionModule } from '../version/version.module';
 
 @Module({
   imports: [
+    // Store files in memory — buffer is passed directly to UploadThing, nothing hits disk
     MulterModule.register({ storage: memoryStorage() }),
     VersionModule,
   ],

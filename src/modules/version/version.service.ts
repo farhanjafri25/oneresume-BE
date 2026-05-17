@@ -59,4 +59,18 @@ export class VersionService {
     if (!version) throw new NotFoundException('No versions found for this variant');
     return version;
   }
+
+  /**
+   * Returns the current highest versionNumber for a variant, or null if none exist.
+   * Used by UploadService to generate the filename BEFORE the upload occurs.
+   * The actual atomic increment is still performed inside create().
+   */
+  async peekLatestVersionNumber(variantId: string): Promise<number | null> {
+    const latest = await this.prisma.version.findFirst({
+      where: { variantId },
+      orderBy: { versionNumber: 'desc' },
+      select: { versionNumber: true },
+    });
+    return latest?.versionNumber ?? null;
+  }
 }

@@ -1,44 +1,44 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { PrismaService } from '../../prisma/prisma.service';
+import { UTApi, UTFile } from 'uploadthing/server';
 import { VersionService } from '../version/version.service';
-import * as streamifier from 'streamifier';
 
-export interface CloudinaryUploadResult {
+export interface UploadResult {
   fileUrl: string;
-  publicId: string;
+  fileKey: string;
   versionNumber: number;
 }
 
 @Injectable()
 export class UploadService {
+  private readonly utapi: UTApi;
+
   constructor(
     private readonly config: ConfigService,
-    private readonly prisma: PrismaService,
     private readonly versionService: VersionService,
   ) {
-    cloudinary.config({
-      cloud_name: this.config.getOrThrow<string>('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.config.getOrThrow<string>('CLOUDINARY_API_KEY'),
-      api_secret: this.config.getOrThrow<string>('CLOUDINARY_API_SECRET'),
+    this.utapi = new UTApi({
+      token: this.config.getOrThrow<string>('UPLOADTHING_TOKEN'),
     });
   }
 
   /**
-   * Upload a PDF buffer to Cloudinary under the correct folder path,
-   * then create a version record in the DB.
+   * Receives a PDF buffer from Multer, uploads it to UploadThing via UTApi,
+   * then creates and returns the new Version record.
    *
-   * Folder: oneresume/{userId}/{resumeId}/{variantId}/
-   * Public ID: oneresume/{userId}/{resumeId}/{variantId}/v{nextVersion}
+   * File naming convention: {userId}/{resumeId}/{variantId}/v{nextVersion}.pdf
    */
   async uploadAndCreateVersion(
     file: Express.Multer.File,
     userId: string,
     resumeId: string,
     variantId: string,
-  ): Promise<CloudinaryUploadResult> {
-    if (!file || !file.buffer) {
+  ): Promise<UploadResult> {
+    if (!file?.buffer) {
       throw new BadRequestException('No file provided');
     }
 
@@ -46,51 +46,43 @@ export class UploadService {
       throw new BadRequestException('Only PDF files are allowed');
     }
 
-    // Determine next version number upfront so we can name the file
-    const latest = await this.prisma.version.findFirst({
-      where: { variantId },
-      orderBy: { versionNumber: 'desc' },
-    });
-    const nextVersion = latest ? latest.versionNumber + 1 : 1;
+    // Determine next version number to bake into the filename
+    const latest = await this.versionService.peekLatestVersionNumber(variantId);
+    const nextVersion = latest !== null ? latest + 1 : 1;
 
-    const folder = `oneresume/${userId}/${resumeId}/${variantId}`;
-    const publicId = `${folder}/v${nextVersion}`;
+    const fileName = `${userId}/${resumeId}/${variantId}/v${nextVersion}.pdf`;
 
-    // Upload buffer to Cloudinary as a stream
-    const uploadResult = await this.uploadStream(file.buffer, {
-      public_id: publicId,
-      resource_type: 'raw', // PDFs must use raw resource type
-      format: 'pdf',
-      overwrite: false,
+    // UTFile expects BlobPart[] — convert Node Buffer to a plain ArrayBuffer
+    const arrayBuffer = file.buffer.buffer.slice(
+      file.buffer.byteOffset,
+      file.buffer.byteOffset + file.buffer.byteLength,
+    ) as ArrayBuffer;
+
+    const utFile = new UTFile([arrayBuffer], fileName, {
+      type: 'application/pdf',
     });
 
-    // Persist the version record
+    const response = await this.utapi.uploadFiles(utFile);
+
+    if (response.error) {
+      throw new InternalServerErrorException(
+        `UploadThing error: ${response.error.message}`,
+      );
+    }
+
+    const { url, key } = response.data;
+
+    // Persist the version record in DB
     const version = await this.versionService.create({
       variantId,
-      fileUrl: uploadResult.secure_url,
-      publicId: uploadResult.public_id,
+      fileUrl: url,
+      publicId: key, // stored as publicId in schema (renamed below in DB)
     });
 
     return {
       fileUrl: version.fileUrl,
-      publicId: version.publicId,
+      fileKey: version.publicId,
       versionNumber: version.versionNumber,
     };
-  }
-
-  private uploadStream(
-    buffer: Buffer,
-    options: object,
-  ): Promise<UploadApiResponse> {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        options,
-        (error, result) => {
-          if (error) return reject(new InternalServerErrorException(error.message));
-          resolve(result);
-        },
-      );
-      streamifier.createReadStream(buffer).pipe(uploadStream);
-    });
   }
 }

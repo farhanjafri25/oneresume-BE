@@ -16,16 +16,19 @@ export class UploadController {
 
   /**
    * POST /api/upload
-   * Multipart form-data fields:
-   *   - file: PDF file
-   *   - userId: string (UUID)
-   *   - resumeId: string (UUID)
-   *   - variantId: string (UUID)
+   *
+   * Multipart form-data:
+   *   - file      : PDF file (required, max 10 MB)
+   *   - userId    : UUID
+   *   - resumeId  : UUID
+   *   - variantId : UUID
+   *
+   * Returns: { fileUrl, fileKey, versionNumber }
    */
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
       fileFilter: (_req, file, cb) => {
         if (file.mimetype !== 'application/pdf') {
           return cb(new BadRequestException('Only PDF files are allowed'), false);
@@ -38,7 +41,7 @@ export class UploadController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadResumeDto,
   ) {
-    if (!file) throw new BadRequestException('File is required');
+    if (!file) throw new BadRequestException('A PDF file is required');
 
     return this.uploadService.uploadAndCreateVersion(
       file,

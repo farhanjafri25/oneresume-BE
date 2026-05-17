@@ -1,18 +1,29 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Public } from '../auth/decorators/public.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.userService.create(dto);
-  }
-
+  /**
+   * GET /api/users/:username
+   * Public — used to look up any user's profile page
+   */
+  @Public()
   @Get(':username')
   findByUsername(@Param('username') username: string) {
     return this.userService.findByUsername(username);
+  }
+
+  /**
+   * GET /api/users/resumes
+   * Protected — returns all resumes belonging to the logged-in user
+   */
+  @Get('resumes')
+  getMyResumes(@CurrentUser() user: AuthenticatedUser) {
+    return this.userService.findResumesByUserId(user.id);
   }
 }

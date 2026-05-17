@@ -1,6 +1,8 @@
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { PublicService } from './public.service';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public() // all resume viewer routes are open — no auth required
 @Controller()
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
