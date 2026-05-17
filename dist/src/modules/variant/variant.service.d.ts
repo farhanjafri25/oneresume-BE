@@ -6,8 +6,8 @@ export declare class VariantService {
     create(dto: CreateVariantDto): Promise<{
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     }>;
     findByResumeId(resumeId: string): Promise<({
         versions: {
@@ -21,8 +21,8 @@ export declare class VariantService {
     } & {
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     })[]>;
     findById(id: string): Promise<{
         versions: {
@@ -36,7 +36,7 @@ export declare class VariantService {
     } & {
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     }>;
 }

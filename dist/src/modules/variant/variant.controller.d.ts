@@ -6,8 +6,8 @@ export declare class VariantController {
     create(resumeId: string, dto: CreateVariantDto): Promise<{
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     }>;
     findAll(resumeId: string): Promise<({
         versions: {
@@ -21,8 +21,8 @@ export declare class VariantController {
     } & {
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     })[]>;
     findOne(variantId: string): Promise<{
         versions: {
@@ -36,7 +36,7 @@ export declare class VariantController {
     } & {
         id: string;
         slug: string;
-        isDefault: boolean;
         resumeId: string;
+        isDefault: boolean;
     }>;
 }

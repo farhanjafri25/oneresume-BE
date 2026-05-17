@@ -20,39 +20,29 @@ let PublicController = class PublicController {
     constructor(publicService) {
         this.publicService = publicService;
     }
-    getDefaultLatest(username) {
-        return this.publicService.getLatest(username);
+    getLatestResume(username, filename) {
+        return this.publicService.getLatest(username, filename);
     }
-    getVariantLatest(username, variant) {
-        return this.publicService.getLatest(username, variant);
-    }
-    getSpecificVersion(username, variant, version) {
-        return this.publicService.getSpecific(username, variant, version);
+    getSpecificVersion(username, filename, version) {
+        return this.publicService.getSpecific(username, filename, version);
     }
 };
 exports.PublicController = PublicController;
 __decorate([
-    (0, common_1.Get)(':username'),
+    (0, common_1.Get)(':username/:filename'),
     __param(0, (0, common_1.Param)('username')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], PublicController.prototype, "getDefaultLatest", null);
-__decorate([
-    (0, common_1.Get)(':username/:variant'),
-    __param(0, (0, common_1.Param)('username')),
-    __param(1, (0, common_1.Param)('variant')),
+    __param(1, (0, common_1.Param)('filename')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
-], PublicController.prototype, "getVariantLatest", null);
+], PublicController.prototype, "getLatestResume", null);
 __decorate([
-    (0, common_1.Get)(':username/:variant/v/:version'),
+    (0, common_1.Get)(':username/:filename/:version'),
     __param(0, (0, common_1.Param)('username')),
-    __param(1, (0, common_1.Param)('variant')),
-    __param(2, (0, common_1.Param)('version', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Param)('filename')),
+    __param(2, (0, common_1.Param)('version')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Number]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], PublicController.prototype, "getSpecificVersion", null);
 exports.PublicController = PublicController = __decorate([

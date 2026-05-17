@@ -1,4 +1,4 @@
-import { IsString, IsUUID, Matches, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Matches, MinLength } from 'class-validator';
 
 export class CreateResumeDto {
   @IsUUID()
@@ -10,4 +10,8 @@ export class CreateResumeDto {
     message: 'Slug can only contain lowercase letters, numbers, hyphens and underscores',
   })
   slug: string;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
 }

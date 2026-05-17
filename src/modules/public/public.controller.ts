@@ -7,28 +7,22 @@ import { Public } from '../auth/decorators/public.decorator';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
-  // GET /api/:username  → latest default variant
-  @Get(':username')
-  getDefaultLatest(@Param('username') username: string) {
-    return this.publicService.getLatest(username);
-  }
-
-  // GET /api/:username/:variant  → latest of named variant
-  @Get(':username/:variant')
-  getVariantLatest(
+  // GET /api/:username/:filename  → latest version of default variant of this resume
+  @Get(':username/:filename')
+  getLatestResume(
     @Param('username') username: string,
-    @Param('variant') variant: string,
+    @Param('filename') filename: string,
   ) {
-    return this.publicService.getLatest(username, variant);
+    return this.publicService.getLatest(username, filename);
   }
 
-  // GET /api/:username/:variant/v/:version  → specific version
-  @Get(':username/:variant/v/:version')
+  // GET /api/:username/:filename/:version  → specific version (e.g. v1)
+  @Get(':username/:filename/:version')
   getSpecificVersion(
     @Param('username') username: string,
-    @Param('variant') variant: string,
-    @Param('version', ParseIntPipe) version: number,
+    @Param('filename') filename: string,
+    @Param('version') version: string,
   ) {
-    return this.publicService.getSpecific(username, variant, version);
+    return this.publicService.getSpecific(username, filename, version);
   }
 }

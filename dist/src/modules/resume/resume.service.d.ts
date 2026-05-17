@@ -7,13 +7,14 @@ export declare class ResumeService {
         variants: {
             id: string;
             slug: string;
-            isDefault: boolean;
             resumeId: string;
+            isDefault: boolean;
         }[];
     } & {
         id: string;
         createdAt: Date;
         userId: string;
+        title: string;
         slug: string;
     }>;
     findByUserId(userId: string): Promise<({
@@ -29,13 +30,14 @@ export declare class ResumeService {
         } & {
             id: string;
             slug: string;
-            isDefault: boolean;
             resumeId: string;
+            isDefault: boolean;
         })[];
     } & {
         id: string;
         createdAt: Date;
         userId: string;
+        title: string;
         slug: string;
     })[]>;
     findById(id: string): Promise<{
@@ -51,13 +53,14 @@ export declare class ResumeService {
         } & {
             id: string;
             slug: string;
-            isDefault: boolean;
             resumeId: string;
+            isDefault: boolean;
         })[];
     } & {
         id: string;
         createdAt: Date;
         userId: string;
+        title: string;
         slug: string;
     }>;
 }

@@ -11,8 +11,8 @@ export interface ResolvedResume {
 export declare class PublicService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    getLatest(username: string, variantSlug?: string): Promise<ResolvedResume>;
-    getSpecific(username: string, variantSlug: string, versionNumber: number): Promise<ResolvedResume>;
+    getLatest(username: string, filename: string): Promise<ResolvedResume>;
+    getSpecific(username: string, filename: string, versionParam: string | number): Promise<ResolvedResume>;
     private resolveVariant;
     private buildResponse;
 }

@@ -25,12 +25,14 @@ model User {
 model Resume {
   id        String   @id @default(uuid())
   userId    String
-  slug      String   @unique
+  title     String   @default("Master Resume")
+  slug      String
   createdAt DateTime @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   variants Variant[]
 
+  @@unique([userId, slug])
   @@map("resumes")
 }
 

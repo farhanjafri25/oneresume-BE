@@ -27,13 +27,14 @@ export declare class UserService {
         } & {
             id: string;
             slug: string;
-            isDefault: boolean;
             resumeId: string;
+            isDefault: boolean;
         })[];
     } & {
         id: string;
         createdAt: Date;
         userId: string;
+        title: string;
         slug: string;
     })[]>;
 }

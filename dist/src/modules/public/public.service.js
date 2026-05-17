@@ -16,19 +16,30 @@ let PublicService = class PublicService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async getLatest(username, variantSlug) {
-        const { variant, user } = await this.resolveVariant(username, variantSlug);
+    async getLatest(username, filename) {
+        const { variant } = await this.resolveVariant(username, filename);
         const version = await this.prisma.version.findFirst({
             where: { variantId: variant.id },
             orderBy: { versionNumber: 'desc' },
         });
         if (!version) {
-            throw new common_1.NotFoundException('No versions found for this resume variant');
+            throw new common_1.NotFoundException('No versions found for this resume');
         }
         return this.buildResponse(username, variant, version, variant.resume);
     }
-    async getSpecific(username, variantSlug, versionNumber) {
-        const { variant } = await this.resolveVariant(username, variantSlug);
+    async getSpecific(username, filename, versionParam) {
+        const { variant } = await this.resolveVariant(username, filename);
+        let versionNumber;
+        if (typeof versionParam === 'string') {
+            const stripped = versionParam.startsWith('v') ? versionParam.slice(1) : versionParam;
+            versionNumber = parseInt(stripped, 10);
+        }
+        else {
+            versionNumber = versionParam;
+        }
+        if (isNaN(versionNumber)) {
+            throw new common_1.BadRequestException(`Invalid version format: ${versionParam}`);
+        }
         const version = await this.prisma.version.findUnique({
             where: {
                 variantId_versionNumber: {
@@ -42,12 +53,17 @@ let PublicService = class PublicService {
         }
         return this.buildResponse(username, variant, version, variant.resume);
     }
-    async resolveVariant(username, variantSlug) {
+    async resolveVariant(username, filename, variantSlug = 'default') {
         const user = await this.prisma.user.findUnique({ where: { username } });
         if (!user)
             throw new common_1.NotFoundException(`User "${username}" not found`);
-        const resume = await this.prisma.resume.findFirst({
-            where: { userId: user.id },
+        const resume = await this.prisma.resume.findUnique({
+            where: {
+                userId_slug: {
+                    userId: user.id,
+                    slug: filename,
+                },
+            },
             include: {
                 variants: {
                     include: {
@@ -57,24 +73,18 @@ let PublicService = class PublicService {
             },
         });
         if (!resume)
-            throw new common_1.NotFoundException('No resume found for this user');
-        let variant;
-        if (variantSlug) {
-            variant = await this.prisma.variant.findUnique({
-                where: { resumeId_slug: { resumeId: resume.id, slug: variantSlug } },
-                include: { resume: true },
-            });
-            if (!variant)
-                throw new common_1.NotFoundException(`Variant "${variantSlug}" not found`);
-        }
-        else {
-            variant = await this.prisma.variant.findFirst({
-                where: { resumeId: resume.id, isDefault: true },
-                include: { resume: true },
-            });
-            if (!variant)
-                throw new common_1.NotFoundException('Default variant not found');
-        }
+            throw new common_1.NotFoundException(`Resume "${filename}" not found for user "${username}"`);
+        const variant = await this.prisma.variant.findUnique({
+            where: {
+                resumeId_slug: {
+                    resumeId: resume.id,
+                    slug: variantSlug,
+                },
+            },
+            include: { resume: true },
+        });
+        if (!variant)
+            throw new common_1.NotFoundException(`Variant "${variantSlug}" not found`);
         return { variant, user, resume };
     }
     async buildResponse(username, variant, version, resume) {

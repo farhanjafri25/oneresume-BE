@@ -20,11 +20,24 @@ let ResumeService = class ResumeService {
         const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
         if (!user)
             throw new common_1.NotFoundException('User not found');
-        const existing = await this.prisma.resume.findUnique({ where: { slug: dto.slug } });
-        if (existing)
-            throw new common_1.ConflictException('Resume slug already taken');
+        const existing = await this.prisma.resume.findUnique({
+            where: {
+                userId_slug: {
+                    userId: dto.userId,
+                    slug: dto.slug,
+                },
+            },
+            include: { variants: true },
+        });
+        if (existing) {
+            return existing;
+        }
         const resume = await this.prisma.resume.create({
-            data: { userId: dto.userId, slug: dto.slug },
+            data: {
+                userId: dto.userId,
+                slug: dto.slug,
+                title: dto.title || 'Master Resume',
+            },
         });
         await this.prisma.variant.create({
             data: {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface ResolvedResume {
@@ -16,11 +16,10 @@ export class PublicService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * GET /:username          → latest version of default variant
-   * GET /:username/:variant → latest version of named variant
+   * GET /:username/:filename → latest version of default variant of that filename
    */
-  async getLatest(username: string, variantSlug?: string): Promise<ResolvedResume> {
-    const { variant, user } = await this.resolveVariant(username, variantSlug);
+  async getLatest(username: string, filename: string): Promise<ResolvedResume> {
+    const { variant } = await this.resolveVariant(username, filename);
 
     const version = await this.prisma.version.findFirst({
       where: { variantId: variant.id },
@@ -28,21 +27,33 @@ export class PublicService {
     });
 
     if (!version) {
-      throw new NotFoundException('No versions found for this resume variant');
+      throw new NotFoundException('No versions found for this resume');
     }
 
     return this.buildResponse(username, variant, version, variant.resume);
   }
 
   /**
-   * GET /:username/:variant/v/:version → specific version
+   * GET /:username/:filename/:version → specific version (e.g. v1)
    */
   async getSpecific(
     username: string,
-    variantSlug: string,
-    versionNumber: number,
+    filename: string,
+    versionParam: string | number,
   ): Promise<ResolvedResume> {
-    const { variant } = await this.resolveVariant(username, variantSlug);
+    const { variant } = await this.resolveVariant(username, filename);
+
+    let versionNumber: number;
+    if (typeof versionParam === 'string') {
+      const stripped = versionParam.startsWith('v') ? versionParam.slice(1) : versionParam;
+      versionNumber = parseInt(stripped, 10);
+    } else {
+      versionNumber = versionParam;
+    }
+
+    if (isNaN(versionNumber)) {
+      throw new BadRequestException(`Invalid version format: ${versionParam}`);
+    }
 
     const version = await this.prisma.version.findUnique({
       where: {
@@ -62,13 +73,18 @@ export class PublicService {
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  private async resolveVariant(username: string, variantSlug?: string) {
+  private async resolveVariant(username: string, filename: string, variantSlug = 'default') {
     const user = await this.prisma.user.findUnique({ where: { username } });
     if (!user) throw new NotFoundException(`User "${username}" not found`);
 
-    // Find the resume for this user (by username slug convention)
-    const resume = await this.prisma.resume.findFirst({
-      where: { userId: user.id },
+    // Find the specific resume for this user matching the filename (resume slug)
+    const resume = await this.prisma.resume.findUnique({
+      where: {
+        userId_slug: {
+          userId: user.id,
+          slug: filename,
+        },
+      },
       include: {
         variants: {
           include: {
@@ -78,24 +94,20 @@ export class PublicService {
       },
     });
 
-    if (!resume) throw new NotFoundException('No resume found for this user');
+    if (!resume) throw new NotFoundException(`Resume "${filename}" not found for user "${username}"`);
 
-    let variant;
+    // Find the default variant or specific variant of this resume
+    const variant = await this.prisma.variant.findUnique({
+      where: {
+        resumeId_slug: {
+          resumeId: resume.id,
+          slug: variantSlug,
+        },
+      },
+      include: { resume: true },
+    });
 
-    if (variantSlug) {
-      variant = await this.prisma.variant.findUnique({
-        where: { resumeId_slug: { resumeId: resume.id, slug: variantSlug } },
-        include: { resume: true },
-      });
-      if (!variant) throw new NotFoundException(`Variant "${variantSlug}" not found`);
-    } else {
-      // Fall back to default variant
-      variant = await this.prisma.variant.findFirst({
-        where: { resumeId: resume.id, isDefault: true },
-        include: { resume: true },
-      });
-      if (!variant) throw new NotFoundException('Default variant not found');
-    }
+    if (!variant) throw new NotFoundException(`Variant "${variantSlug}" not found`);
 
     return { variant, user, resume };
   }
