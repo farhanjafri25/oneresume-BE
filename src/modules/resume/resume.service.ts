@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class ResumeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   async create(dto: CreateResumeDto) {
     // Verify user exists
@@ -68,5 +72,25 @@ export class ResumeService {
     });
     if (!resume) throw new NotFoundException('Resume not found');
     return resume;
+  }
+
+  async delete(id: string) {
+    const resume = await this.prisma.resume.findUnique({
+      where: { id },
+      include: { variants: { include: { versions: true } } },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    // Collect all UploadThing file keys (publicId)
+    const fileKeys = resume.variants.flatMap((variant) =>
+      variant.versions.map((version) => version.publicId),
+    );
+
+    // Delete files from S3 asynchronously
+    if (fileKeys.length > 0) {
+      await this.uploadService.deleteFiles(fileKeys);
+    }
+
+    return this.prisma.resume.delete({ where: { id } });
   }
 }

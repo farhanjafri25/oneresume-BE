@@ -1,8 +1,10 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { UploadService } from '../upload/upload.service';
 export declare class ResumeService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly uploadService;
+    constructor(prisma: PrismaService, uploadService: UploadService);
     create(dto: CreateResumeDto): Promise<{
         variants: {
             id: string;
@@ -12,10 +14,10 @@ export declare class ResumeService {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
     }>;
     findByUserId(userId: string): Promise<({
         variants: ({
@@ -35,10 +37,10 @@ export declare class ResumeService {
         })[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
     })[]>;
     findById(id: string): Promise<{
         variants: ({
@@ -58,9 +60,16 @@ export declare class ResumeService {
         })[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
+    }>;
+    delete(id: string): Promise<{
+        id: string;
+        userId: string;
+        title: string;
+        slug: string;
+        createdAt: Date;
     }>;
 }

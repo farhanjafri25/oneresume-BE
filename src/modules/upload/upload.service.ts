@@ -85,4 +85,16 @@ export class UploadService {
       versionNumber: version.versionNumber,
     };
   }
+
+  /**
+   * Deletes one or multiple files from UploadThing (S3).
+   */
+  async deleteFiles(fileKeys: string | string[]): Promise<void> {
+    try {
+      if (Array.isArray(fileKeys) && fileKeys.length === 0) return;
+      await this.utapi.deleteFiles(fileKeys);
+    } catch (err) {
+      console.error('Failed to delete files from UploadThing:', err);
+    }
+  }
 }

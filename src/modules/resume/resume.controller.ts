@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ResumeService } from './resume.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -26,5 +26,10 @@ export class ResumeController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.resumeService.findById(id);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.resumeService.delete(id);
   }
 }

@@ -10,11 +10,13 @@ exports.ResumeModule = void 0;
 const common_1 = require("@nestjs/common");
 const resume_controller_1 = require("./resume.controller");
 const resume_service_1 = require("./resume.service");
+const upload_module_1 = require("../upload/upload.module");
 let ResumeModule = class ResumeModule {
 };
 exports.ResumeModule = ResumeModule;
 exports.ResumeModule = ResumeModule = __decorate([
     (0, common_1.Module)({
+        imports: [upload_module_1.UploadModule],
         controllers: [resume_controller_1.ResumeController],
         providers: [resume_service_1.ResumeService],
         exports: [resume_service_1.ResumeService],

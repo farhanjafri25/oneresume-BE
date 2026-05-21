@@ -33,6 +33,9 @@ let ResumeController = class ResumeController {
     findOne(id) {
         return this.resumeService.findById(id);
     }
+    delete(id) {
+        return this.resumeService.delete(id);
+    }
 };
 exports.ResumeController = ResumeController;
 __decorate([
@@ -63,6 +66,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ResumeController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ResumeController.prototype, "delete", null);
 exports.ResumeController = ResumeController = __decorate([
     (0, common_1.Controller)('resumes'),
     __metadata("design:paramtypes", [resume_service_1.ResumeService])

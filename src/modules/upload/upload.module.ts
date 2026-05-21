@@ -13,5 +13,6 @@ import { VersionModule } from '../version/version.module';
   ],
   controllers: [UploadController],
   providers: [UploadService],
+  exports: [UploadService],
 })
 export class UploadModule {}

@@ -11,4 +11,5 @@ export declare class UploadService {
     private readonly utapi;
     constructor(config: ConfigService, versionService: VersionService);
     uploadAndCreateVersion(file: Express.Multer.File, userId: string, resumeId: string, variantId: string): Promise<UploadResult>;
+    deleteFiles(fileKeys: string | string[]): Promise<void>;
 }

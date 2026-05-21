@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ResumeService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const upload_service_1 = require("../upload/upload.service");
 let ResumeService = class ResumeService {
-    constructor(prisma) {
+    constructor(prisma, uploadService) {
         this.prisma = prisma;
+        this.uploadService = uploadService;
     }
     async create(dto) {
         const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
@@ -67,10 +69,24 @@ let ResumeService = class ResumeService {
             throw new common_1.NotFoundException('Resume not found');
         return resume;
     }
+    async delete(id) {
+        const resume = await this.prisma.resume.findUnique({
+            where: { id },
+            include: { variants: { include: { versions: true } } },
+        });
+        if (!resume)
+            throw new common_1.NotFoundException('Resume not found');
+        const fileKeys = resume.variants.flatMap((variant) => variant.versions.map((version) => version.publicId));
+        if (fileKeys.length > 0) {
+            await this.uploadService.deleteFiles(fileKeys);
+        }
+        return this.prisma.resume.delete({ where: { id } });
+    }
 };
 exports.ResumeService = ResumeService;
 exports.ResumeService = ResumeService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        upload_service_1.UploadService])
 ], ResumeService);
 //# sourceMappingURL=resume.service.js.map

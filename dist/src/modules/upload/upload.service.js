@@ -52,6 +52,16 @@ let UploadService = class UploadService {
             versionNumber: version.versionNumber,
         };
     }
+    async deleteFiles(fileKeys) {
+        try {
+            if (Array.isArray(fileKeys) && fileKeys.length === 0)
+                return;
+            await this.utapi.deleteFiles(fileKeys);
+        }
+        catch (err) {
+            console.error('Failed to delete files from UploadThing:', err);
+        }
+    }
 };
 exports.UploadService = UploadService;
 exports.UploadService = UploadService = __decorate([

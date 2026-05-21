@@ -13,10 +13,10 @@ export declare class ResumeController {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
     }>;
     findMyResumes(user: AuthenticatedUser): Promise<({
         variants: ({
@@ -36,10 +36,10 @@ export declare class ResumeController {
         })[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
     })[]>;
     findByUser(userId: string): Promise<({
         variants: ({
@@ -59,10 +59,10 @@ export declare class ResumeController {
         })[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
     })[]>;
     findOne(id: string): Promise<{
         variants: ({
@@ -82,9 +82,16 @@ export declare class ResumeController {
         })[];
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
         title: string;
         slug: string;
+        createdAt: Date;
+    }>;
+    delete(id: string): Promise<{
+        id: string;
+        userId: string;
+        title: string;
+        slug: string;
+        createdAt: Date;
     }>;
 }
