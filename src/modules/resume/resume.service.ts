@@ -146,16 +146,25 @@ export class ResumeService {
       }
     });
 
+    // 4. Group Views by Campaign/Role label
+    const campaigns: Record<string, number> = {};
+    logs.forEach((log) => {
+      const label = log.label || 'Default / Generic Link';
+      campaigns[label] = (campaigns[label] || 0) + 1;
+    });
+
     return {
       summary: { totalViews, uniqueViews, desktop, mobile, tablet },
       referrers: Object.entries(referrers).map(([source, count]) => ({ source, count })),
       timeline: Object.entries(timeline).map(([date, count]) => ({ date, count })),
+      campaigns: Object.entries(campaigns).map(([label, count]) => ({ label, count })),
       recentLogs: logs.slice(0, 15).map((log) => ({
         id: log.id,
         viewedAt: log.viewedAt,
         country: log.country,
         referer: this.parseReferer(log.referer),
         browser: this.parseBrowser(log.userAgent),
+        label: log.label,
       })),
     };
   }

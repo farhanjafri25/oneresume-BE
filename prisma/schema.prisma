@@ -76,6 +76,7 @@ model ViewLog {
   country       String?
   userAgent     String?
   referer       String?
+  label         String?  // Custom application label: e.g., "Google - Frontend"
   viewedAt      DateTime @default(now())
 
   resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)

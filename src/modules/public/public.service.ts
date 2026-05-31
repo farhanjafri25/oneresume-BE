@@ -84,7 +84,7 @@ export class PublicService {
     resumeId: string,
     variantId: string,
     versionNumber: number,
-    meta: { country?: string; ip?: string; userAgent?: string; referer?: string },
+    meta: { country?: string; ip?: string; userAgent?: string; referer?: string; label?: string },
   ) {
     try {
       // Basic IP anonymizer (mask last octet for visitor privacy compliance)
@@ -102,6 +102,7 @@ export class PublicService {
           country: meta.country || null,
           userAgent: meta.userAgent || null,
           referer: meta.referer || null,
+          label: meta.label || null,
         },
       });
     } catch (error) {
