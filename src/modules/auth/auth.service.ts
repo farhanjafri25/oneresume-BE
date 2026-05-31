@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -15,11 +16,68 @@ const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient: OAuth2Client;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(this.config.get<string>('GOOGLE_CLIENT_ID'));
+  }
+
+  // ─── Google Login ─────────────────────────────────────────────────────────────
+
+  async googleLogin(googleToken: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: googleToken,
+        audience: this.config.get<string>('GOOGLE_CLIENT_ID'),
+      });
+      
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      const { email, name } = payload;
+
+      // Check if user already exists
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        // Auto-generate a unique username
+        const baseUsername = (name || email.split('@')[0])
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+        
+        let username = baseUsername;
+        let suffix = 1;
+        
+        // Ensure username uniqueness
+        while (await this.prisma.user.findUnique({ where: { username } })) {
+          username = `${baseUsername}${suffix++}`;
+        }
+
+        // Create new user without a password
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            username,
+            password: null, // Null is allowed now
+          },
+        });
+      }
+
+      return this.buildTokenResponse(user);
+    } catch (error) {
+      throw new UnauthorizedException(
+        error instanceof UnauthorizedException ? error.message : 'Google authentication failed',
+      );
+    }
+  }
 
   // ─── Signup ──────────────────────────────────────────────────────────────────
 
