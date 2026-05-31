@@ -31,6 +31,7 @@ model Resume {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   variants Variant[]
+  views    ViewLog[] // New relation for view tracking
 
   @@unique([userId, slug])
   @@map("resumes")
@@ -44,6 +45,7 @@ model Variant {
 
   resume   Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
   versions Version[]
+  views    ViewLog[] // New relation for view tracking
 
   // Each slug must be unique within a resume
   @@unique([resumeId, slug])
@@ -63,4 +65,22 @@ model Version {
   // Ensure version numbers are unique per variant
   @@unique([variantId, versionNumber])
   @@map("versions")
+}
+
+model ViewLog {
+  id            String   @id @default(uuid())
+  resumeId      String
+  variantId     String
+  versionNumber Int
+  ipAddress     String?
+  country       String?
+  userAgent     String?
+  referer       String?
+  viewedAt      DateTime @default(now())
+
+  resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId, viewedAt])
+  @@map("view_logs")
 }

@@ -1,4 +1,5 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { PublicService } from './public.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -12,8 +13,10 @@ export class PublicController {
   getLatestResume(
     @Param('username') username: string,
     @Param('filename') filename: string,
+    @Req() req: Request,
   ) {
-    return this.publicService.getLatest(username, filename);
+    const meta = this.extractRequestMeta(req);
+    return this.publicService.getLatest(username, filename, meta);
   }
 
   // GET /api/:username/:filename/:version  → specific version (e.g. v1)
@@ -22,7 +25,18 @@ export class PublicController {
     @Param('username') username: string,
     @Param('filename') filename: string,
     @Param('version') version: string,
+    @Req() req: Request,
   ) {
-    return this.publicService.getSpecific(username, filename, version);
+    const meta = this.extractRequestMeta(req);
+    return this.publicService.getSpecific(username, filename, version, meta);
+  }
+
+  private extractRequestMeta(req: Request) {
+    const country = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '') as string;
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '') as string;
+    const userAgent = (req.headers['user-agent'] || '') as string;
+    const referer = (req.headers['referer'] || '') as string;
+
+    return { country, ip, userAgent, referer };
   }
 }

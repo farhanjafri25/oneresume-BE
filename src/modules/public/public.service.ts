@@ -18,7 +18,7 @@ export class PublicService {
   /**
    * GET /:username/:filename → latest version of default variant of that filename
    */
-  async getLatest(username: string, filename: string): Promise<ResolvedResume> {
+  async getLatest(username: string, filename: string, meta?: any): Promise<ResolvedResume> {
     const { variant } = await this.resolveVariant(username, filename);
 
     const version = await this.prisma.version.findFirst({
@@ -28,6 +28,10 @@ export class PublicService {
 
     if (!version) {
       throw new NotFoundException('No versions found for this resume');
+    }
+
+    if (meta) {
+      this.logViewAsync(variant.resumeId, variant.id, version.versionNumber, meta);
     }
 
     return this.buildResponse(username, variant, version, variant.resume);
@@ -40,6 +44,7 @@ export class PublicService {
     username: string,
     filename: string,
     versionParam: string | number,
+    meta?: any,
   ): Promise<ResolvedResume> {
     const { variant } = await this.resolveVariant(username, filename);
 
@@ -68,7 +73,40 @@ export class PublicService {
       throw new NotFoundException(`Version ${versionNumber} not found`);
     }
 
+    if (meta) {
+      this.logViewAsync(variant.resumeId, variant.id, version.versionNumber, meta);
+    }
+
     return this.buildResponse(username, variant, version, variant.resume);
+  }
+
+  private async logViewAsync(
+    resumeId: string,
+    variantId: string,
+    versionNumber: number,
+    meta: { country?: string; ip?: string; userAgent?: string; referer?: string },
+  ) {
+    try {
+      // Basic IP anonymizer (mask last octet for visitor privacy compliance)
+      let ipAddress = meta.ip || null;
+      if (ipAddress && ipAddress.includes('.')) {
+        ipAddress = ipAddress.substring(0, ipAddress.lastIndexOf('.')) + '.0';
+      }
+
+      await this.prisma.viewLog.create({
+        data: {
+          resumeId,
+          variantId,
+          versionNumber,
+          ipAddress,
+          country: meta.country || null,
+          userAgent: meta.userAgent || null,
+          referer: meta.referer || null,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log resume view:', error);
+    }
   }
 
   // ─── helpers ────────────────────────────────────────────────────────────────

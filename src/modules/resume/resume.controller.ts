@@ -28,6 +28,14 @@ export class ResumeController {
     return this.resumeService.findById(id);
   }
 
+  @Get(':id/analytics')
+  getAnalytics(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resumeService.getAnalytics(id, user.id);
+  }
+
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.resumeService.delete(id);
