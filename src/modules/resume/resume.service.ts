@@ -2,16 +2,19 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { UploadService } from '../upload/upload.service';
+import { AiService } from './ai.service';
 
 @Injectable()
 export class ResumeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
+    private readonly aiService: AiService,
   ) {}
 
   async create(dto: CreateResumeDto) {
@@ -167,6 +170,20 @@ export class ResumeService {
         label: log.label,
       })),
     };
+  }
+
+  async reviewResume(resumeId: string, jd: string, userId: string) {
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      include: { variants: { include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } } },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    const defaultVariant = resume.variants.find((v) => v.slug === 'default');
+    const latestVersion = defaultVariant?.versions?.[0];
+    if (!latestVersion) throw new BadRequestException('No PDF uploaded yet. Please upload a PDF before using the AI Reviewer.');
+
+    return this.aiService.reviewResumeAgainstJd(latestVersion.fileUrl, jd);
   }
 
   private parseReferer(referer: string | null): string {

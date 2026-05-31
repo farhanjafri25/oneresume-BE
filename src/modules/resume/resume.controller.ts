@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ResumeService } from './resume.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { ReviewResumeDto } from './dto/review-resume.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 
@@ -34,6 +35,15 @@ export class ResumeController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.resumeService.getAnalytics(id, user.id);
+  }
+
+  @Post(':id/review')
+  review(
+    @Param('id') id: string,
+    @Body() dto: ReviewResumeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resumeService.reviewResume(id, dto.jd, user.id);
   }
 
   @Delete(':id')
