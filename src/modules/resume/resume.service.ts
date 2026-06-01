@@ -186,7 +186,7 @@ export class ResumeService {
     return this.aiService.reviewResumeAgainstJd(latestVersion.fileUrl, jd);
   }
 
-  private parseReferer(referer: string | null): string {
+  private parseReferer(referer: string | null): string { 
     if (!referer) return 'Direct / Email';
     const url = referer.toLowerCase();
     if (url.includes('linkedin')) return 'LinkedIn';
