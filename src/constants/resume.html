@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{name}} - Resume</title>
+    <style>
+        /* CRITICAL PDF PRINT CONFIGURATION */
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333333;
+            line-height: 1.5;
+            font-size: 14px;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+        }
+        h1, h2, h3 { margin: 0; padding: 0; color: #111111; }
+        h1 { font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #eeeeee; padding-bottom: 5px; margin-top: 25px; margin-bottom: 12px; }
+        h3 { font-size: 15px; font-weight: 600; }
+        
+        /* CONTENT CONTAINERS */
+        .header { margin-bottom: 25px; }
+        .subtitle { font-size: 16px; color: #666666; margin-top: 5px; font-weight: 400; }
+        .contact-info { font-size: 12px; color: #555555; margin-top: 8px; }
+        .contact-item { display: inline-block; margin-right: 15px; }
+        
+        .section-block { margin-bottom: 15px; page-break-inside: avoid; }
+        .entry-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+        .date-location { font-size: 13px; color: #666666; font-style: italic; text-align: right; }
+        
+        ul { margin: 5px 0 0 20px; padding: 0; }
+        li { margin-bottom: 5px; color: #444444; }
+        .skills-list { font-weight: 500; color: #444444; }
+
+        /* THEME-SPECIFIC INJECTIONS GO HERE */
+        {{theme_styles}}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>{{name}}</h1>
+        <div class="subtitle">{{title}}</div>
+        <div class="contact-info">
+            <span class="contact-item">📧 {{email}}</span>
+            <span class="contact-item">📱 {{phone}}</span>
+            <span class="contact-item">📍 {{location}}</span>
+            <span class="contact-item">🔗 {{linkedin}}</span>
+        </div>
+    </div>
+
+    <h2>Professional Summary</h2>
+    <div class="section-block">
+        <p>{{summary}}</p>
+    </div>
+
+    <h2>Work Experience</h2>
+    {{#each experiences}}
+    <div class="section-block">
+        <div class="entry-header">
+            <h3>{{job_title}} — {{company}}</h3>
+            <div class="date-location">{{job_dates}} | {{job_location}}</div>
+        </div>
+        <ul>
+            <li>{{job_bullet_1}}</li>
+            <li>{{job_bullet_2}}</li>
+            <li>{{job_bullet_3}}</li>
+        </ul>
+    </div>
+    {{/each}}
+
+    <h2>Skills</h2>
+    <div class="section-block">
+        <p class="skills-list">{{skills}}</p>
+    </div>
+
+    <h2>Education</h2>
+    {{#each education}}
+    <div class="section-block">
+        <div class="entry-header">
+            <h3>{{degree}}</h3>
+            <div class="date-location">{{edu_date}}</div>
+        </div>
+        <div style="color: #555555;">{{institution}}{{#if edu_location}} — <span style="font-style: italic;">{{edu_location}}</span>{{/if}}</div>
+    </div>
+    {{/each}}
+
+</body>
+</html>

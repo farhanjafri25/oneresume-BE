@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { CreateVariantDto } from './dto/create-variant.dto';
 import { UploadService } from '../upload/upload.service';
 import { AiService } from './ai.service';
+import { PdfGeneratorService } from './pdf-generator.service';
 
 @Injectable()
 export class ResumeService {
@@ -15,6 +17,7 @@ export class ResumeService {
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
     private readonly aiService: AiService,
+    private readonly pdfGeneratorService: PdfGeneratorService,
   ) {}
 
   async create(dto: CreateResumeDto) {
@@ -184,6 +187,76 @@ export class ResumeService {
     if (!latestVersion) throw new BadRequestException('No PDF uploaded yet. Please upload a PDF before using the AI Reviewer.');
 
     return this.aiService.reviewResumeAgainstJd(latestVersion.fileUrl, jd);
+  }
+
+  async tailorResume(resumeId: string, jd: string, userId: string) {
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      include: { variants: { include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } } },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    const defaultVariant = resume.variants.find((v) => v.slug === 'default');
+    const latestVersion = defaultVariant?.versions?.[0];
+    if (!latestVersion) throw new BadRequestException('No PDF uploaded yet. Please upload a PDF before tailoring.');
+
+    return this.aiService.tailorResumeAgainstJd(latestVersion.fileUrl, jd);
+  }
+
+  async createVariant(resumeId: string, dto: CreateVariantDto, userId: string) {
+    // 1. Verify resume ownership
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      include: { variants: true },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    // 2. Validate template themes
+    const availableThemes = this.pdfGeneratorService.getAvailableThemes();
+    const hasTheme = availableThemes.some(t => t.id === dto.themeId);
+    if (!hasTheme) {
+      throw new BadRequestException(`Selected theme '${dto.themeId}' does not exist.`);
+    }
+
+    // 3. Prevent duplicate slugs within the same resume
+    let variant = resume.variants.find(v => v.slug === dto.slug);
+
+    if (!variant) {
+      variant = await this.prisma.variant.create({
+        data: {
+          resumeId,
+          slug: dto.slug,
+          isDefault: false,
+        },
+      });
+    }
+
+    // 4. Compile and generate PDF from HTML template
+    const pdfBuffer = await this.pdfGeneratorService.generateResumePdf(dto.themeId, dto.tailoredData);
+
+    // 5. Upload the compiled PDF buffer to S3 / UploadThing
+    const uploadResult = await this.uploadService.uploadBufferAndCreateVersion(
+      pdfBuffer,
+      userId,
+      resumeId,
+      variant.id,
+    );
+
+    return {
+      variantId: variant.id,
+      slug: variant.slug,
+      fileUrl: uploadResult.fileUrl,
+      versionNumber: uploadResult.versionNumber,
+    };
+  }
+
+  getAvailableThemes() {
+    return this.pdfGeneratorService.getAvailableThemes();
+  }
+
+  previewResume(themeId: string, tailoredData: any) {
+    const html = this.pdfGeneratorService.compileHtml(themeId, tailoredData);
+    return { html };
   }
 
   private parseReferer(referer: string | null): string { 

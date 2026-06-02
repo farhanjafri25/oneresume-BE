@@ -38,7 +38,7 @@ export class PublicService {
   }
 
   /**
-   * GET /:username/:filename/:version → specific version (e.g. v1)
+   * GET /:username/:filename/:version → specific version (e.g. v1) or variant slug (e.g. meltplanpvtltd-optimized)
    */
   async getSpecific(
     username: string,
@@ -46,7 +46,35 @@ export class PublicService {
     versionParam: string | number,
     meta?: any,
   ): Promise<ResolvedResume> {
-    const { variant } = await this.resolveVariant(username, filename);
+    try {
+      // 1. Try to resolve versionParam as a variant slug first
+      if (typeof versionParam === 'string') {
+        const { variant } = await this.resolveVariant(username, filename, versionParam);
+        
+        const version = await this.prisma.version.findFirst({
+          where: { variantId: variant.id },
+          orderBy: { versionNumber: 'desc' },
+        });
+
+        if (!version) {
+          throw new NotFoundException(`No versions found for variant "${versionParam}"`);
+        }
+
+        if (meta) {
+          this.logViewAsync(variant.resumeId, variant.id, version.versionNumber, meta);
+        }
+
+        return this.buildResponse(username, variant, version, variant.resume);
+      }
+    } catch (err) {
+      // If it wasn't found as a variant, continue and try to parse as a version number of the default variant
+      if (!(err instanceof NotFoundException && err.message.includes('Variant'))) {
+        throw err;
+      }
+    }
+
+    // 2. Fall back: treat versionParam as a version number of the default variant
+    const { variant } = await this.resolveVariant(username, filename, 'default');
 
     let versionNumber: number;
     if (typeof versionParam === 'string') {
@@ -57,7 +85,7 @@ export class PublicService {
     }
 
     if (isNaN(versionNumber)) {
-      throw new BadRequestException(`Invalid version format: ${versionParam}`);
+      throw new BadRequestException(`Invalid version or variant format: ${versionParam}`);
     }
 
     const version = await this.prisma.version.findUnique({
@@ -178,3 +206,4 @@ export class PublicService {
     };
   }
 }
+// triggered dev watch update

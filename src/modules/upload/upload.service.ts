@@ -87,6 +87,54 @@ export class UploadService {
   }
 
   /**
+   * Receives a raw PDF buffer, uploads it to UploadThing, and registers the version in the DB.
+   */
+  async uploadBufferAndCreateVersion(
+    buffer: Buffer,
+    userId: string,
+    resumeId: string,
+    variantId: string,
+  ): Promise<UploadResult> {
+    const latest = await this.versionService.peekLatestVersionNumber(variantId);
+    const nextVersion = latest !== null ? latest + 1 : 1;
+
+    const fileName = `${userId}/${resumeId}/${variantId}/v${nextVersion}.pdf`;
+
+    // Convert Buffer to ArrayBuffer
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    ) as ArrayBuffer;
+
+    const utFile = new UTFile([arrayBuffer], fileName, {
+      type: 'application/pdf',
+    });
+
+    const response = await this.utapi.uploadFiles(utFile);
+
+    if (response.error) {
+      throw new InternalServerErrorException(
+        `UploadThing buffer upload failed: ${response.error.message}`,
+      );
+    }
+
+    const { url, key } = response.data;
+
+    // Create DB Version entry
+    const version = await this.versionService.create({
+      variantId,
+      fileUrl: url,
+      publicId: key,
+    });
+
+    return {
+      fileUrl: version.fileUrl,
+      fileKey: version.publicId,
+      versionNumber: version.versionNumber,
+    };
+  }
+
+  /**
    * Deletes one or multiple files from UploadThing (S3).
    */
   async deleteFiles(fileKeys: string | string[]): Promise<void> {

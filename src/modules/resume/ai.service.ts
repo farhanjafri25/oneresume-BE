@@ -99,4 +99,116 @@ export class AiService {
       throw new BadRequestException(`Gemini CV Analysis failed: ${e?.message || e}`);
     }
   }
+
+  async tailorResumeAgainstJd(pdfUrl: string, jd: string) {
+    const apiKey = this.config.get<string>('GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new BadRequestException('GEMINI_API_KEY is not configured on the server. Please add it to your .env file.');
+    }
+
+    // 1. Fetch PDF file as a buffer
+    let pdfBuffer: Buffer;
+    try {
+      const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+      pdfBuffer = Buffer.from(response.data);
+    } catch (error) {
+      throw new BadRequestException(`Failed to download resume PDF from: ${pdfUrl}. Please verify the PDF link is accessible.`);
+    }
+
+    // 2. Prepare prompt
+    const prompt = `
+      You are an expert technical resume writer.
+      Review the attached candidate resume PDF and the provided Job Description (JD).
+      
+      Job Description:
+      ${jd}
+      
+      Your goal is to extract the resume sections and rewrite/tailor the professional summary and work experiences to align directly with the Job Description.
+      
+      Rules:
+      1. Extract name, email, phone, location, and LinkedIn (or other links) exactly as they are. If not found, use empty strings.
+      2. Professional Summary: Re-write into an engaging, high-impact 2-3 sentence paragraph tailored to the JD's core requirements.
+      3. Work Experience: Rewrite the roles, companies, dates, and locations. For each experience, generate 3 high-impact bullet points highlighting accomplishments, matching skills, and tools mentioned in the JD. Maintain honest chronology and claims, but rephrase them to emphasize alignment.
+      4. Skills: Extract and list matching skills (technologies, frameworks, methodologies) mentioned in both the resume and the JD. Output them as a single comma-separated string (e.g. "TypeScript, React, Next.js, Node.js").
+      5. Education: Extract the degrees, dates, institutions, and locations.
+    `;
+
+    // 3. Call Gemini 2.5 Flash with structured JSON schema
+    try {
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  data: pdfBuffer.toString('base64'),
+                  mimeType: 'application/pdf',
+                },
+              },
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: 'Candidates full name' },
+              title: { type: Type.STRING, description: 'Professional title aligned with the JD' },
+              email: { type: Type.STRING, description: 'Contact email' },
+              phone: { type: Type.STRING, description: 'Contact phone' },
+              location: { type: Type.STRING, description: 'Candidate location (City, State/Country)' },
+              linkedin: { type: Type.STRING, description: 'LinkedIn URL or other link' },
+              summary: { type: Type.STRING, description: 'Tailored 2-3 sentence professional summary' },
+              skills: { type: Type.STRING, description: 'Comma-separated list of technologies and skills' },
+              experiences: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    job_title: { type: Type.STRING, description: 'Job title / role' },
+                    company: { type: Type.STRING, description: 'Company name' },
+                    job_dates: { type: Type.STRING, description: 'Dates worked (e.g., June 2022 - Present)' },
+                    job_location: { type: Type.STRING, description: 'Job location (City, State)' },
+                    job_bullet_1: { type: Type.STRING, description: 'First optimized bullet point' },
+                    job_bullet_2: { type: Type.STRING, description: 'Second optimized bullet point' },
+                    job_bullet_3: { type: Type.STRING, description: 'Third optimized bullet point' },
+                  },
+                  required: ['job_title', 'company', 'job_dates', 'job_bullet_1', 'job_bullet_2', 'job_bullet_3'],
+                },
+                description: 'List of past work experience entries'
+              },
+              education: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    degree: { type: Type.STRING, description: 'Degree received (e.g. BS Computer Science)' },
+                    institution: { type: Type.STRING, description: 'University/College name' },
+                    edu_date: { type: Type.STRING, description: 'Graduation date or range (e.g. 2018 - 2022)' },
+                    edu_location: { type: Type.STRING, description: 'School location' },
+                  },
+                  required: ['degree', 'institution', 'edu_date'],
+                },
+                description: 'Education entries'
+              }
+            },
+            required: ['name', 'title', 'email', 'phone', 'location', 'summary', 'skills', 'experiences', 'education'],
+          },
+        },
+      });
+
+      if (!result.text) {
+        throw new Error('Empty response received from Gemini.');
+      }
+      return JSON.parse(result.text);
+    } catch (e: any) {
+      throw new BadRequestException(`Gemini CV Tailoring failed: ${e?.message || e}`);
+    }
+  }
 }
