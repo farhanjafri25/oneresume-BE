@@ -34,7 +34,7 @@ export class VariantService {
     return this.prisma.variant.findMany({
       where: { resumeId },
       include: {
-        versions: { orderBy: { versionNumber: 'desc' }, take: 1 },
+        versions: { orderBy: { versionNumber: 'desc' } },
       },
       orderBy: { slug: 'asc' },
     });
