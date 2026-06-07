@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser } from './auth.types';
@@ -45,6 +47,30 @@ export class AuthController {
   googleLogin(@Body() dto: GoogleLoginDto) {
     return this.authService.googleLogin(dto.googleToken);
   }
+
+  /**
+   * POST /api/auth/verify-otp
+   * Public — no token required
+   * Returns: { accessToken, user }
+   */
+  @Public()
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
+  }
+
+  /**
+   * POST /api/auth/resend-otp
+   * Public — no token required
+   */
+  @Public()
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto);
+  }
+
 
   /**
    * GET /api/auth/me

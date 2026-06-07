@@ -14,8 +14,11 @@ model User {
   id        String   @id @default(uuid())
   username  String   @unique
   email     String   @unique
-  password  String?  // bcrypt hash — never returned in API responses (optional for OAuth users)
-  createdAt DateTime @default(now())
+  password       String?  // bcrypt hash — never returned in API responses (optional for OAuth users)
+  isVerified     Boolean  @default(false)
+  otpCode        String?  // hashed
+  otpExpiresAt   DateTime?
+  createdAt      DateTime @default(now())
 
   resumes Resume[]
 

@@ -1,7 +1,7 @@
-import {
-  Injectable,
+import { Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,13 +10,17 @@ import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtPayload } from './auth.types';
+import { Resend } from 'resend';
 
 const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
   private readonly googleClient: OAuth2Client;
+  private readonly resend: Resend;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,6 +28,8 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {
     this.googleClient = new OAuth2Client(this.config.get<string>('GOOGLE_CLIENT_ID'));
+    const resendApiKey = this.config.get<string>('RESEND_API_KEY');
+    this.resend = new Resend(resendApiKey || 'dummy_key');
   }
 
   // ─── Google Login ─────────────────────────────────────────────────────────────
@@ -67,6 +73,7 @@ export class AuthService {
             email,
             username,
             password: null, // Null is allowed now
+            isVerified: true, // Google accounts are implicitly verified
           },
         });
       }
@@ -96,15 +103,35 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
+    // Generate 6 digit OTP
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(rawOtp, BCRYPT_ROUNDS);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
     const user = await this.prisma.user.create({
       data: {
         username: dto.username,
         email: dto.email,
         password: hashedPassword,
+        isVerified: false,
+        otpCode: hashedOtp,
+        otpExpiresAt: expiresAt,
       },
     });
 
-    return this.buildTokenResponse(user);
+    // Send email via Resend
+    try {
+      await this.resend.emails.send({
+        from: 'OneResume <noreply@resend.dev>', // In production, use verified domain e.g. hello@yourdomain.com
+        to: user.email,
+        subject: 'Verify your OneResume account',
+        html: `<p>Welcome to OneResume!</p><p>Your verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,
+      });
+    } catch (error) {
+      console.error('Failed to send verification email', error);
+    }
+
+    return { message: 'OTP sent to email', requiresOtp: true, email: user.email };
   }
 
   // ─── Login ───────────────────────────────────────────────────────────────────
@@ -115,7 +142,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('User not found, try signing up instead');
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedException('Account has a different login method');
     }
 
     const passwordMatches = await bcrypt.compare(dto.password, user.password);
@@ -124,7 +155,84 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Please verify your email before logging in.');
+    }
+
     return this.buildTokenResponse(user);
+  }
+
+  // ─── OTP Verification ───────────────────────────────────────────────────────
+
+  async verifyOtp(dto: VerifyOtpDto) {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user) throw new UnauthorizedException('Invalid email or code');
+
+    if (user.isVerified) {
+      return this.buildTokenResponse(user);
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
+      throw new BadRequestException('No verification code found. Please request a new one.');
+    }
+
+    if (user.otpExpiresAt < new Date()) {
+      throw new BadRequestException('Verification code has expired. Please request a new one.');
+    }
+
+    const isValid = await bcrypt.compare(dto.code, user.otpCode);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid verification code');
+    }
+
+    // Mark as verified and clear OTP fields
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return this.buildTokenResponse(updatedUser);
+  }
+
+  async resendOtp(dto: ResendOtpDto) {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user) {
+      // Return success to prevent email enumeration
+      return { message: 'If the email exists, a new code was sent.' };
+    }
+
+    if (user.isVerified) {
+      return { message: 'User is already verified' };
+    }
+
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(rawOtp, BCRYPT_ROUNDS);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: hashedOtp,
+        otpExpiresAt: expiresAt,
+      },
+    });
+
+    try {
+      await this.resend.emails.send({
+        from: 'OneResume <noreply@resend.dev>',
+        to: user.email,
+        subject: 'Your new verification code',
+        html: `<p>Your new verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,
+      });
+    } catch (error) {
+      console.error('Failed to resend verification email', error);
+    }
+
+    return { message: 'OTP sent to email' };
   }
 
   // ─── Me (fetch own profile) ───────────────────────────────────────────────────
