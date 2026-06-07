@@ -92,11 +92,15 @@ export class AiService {
       });
 
       if (!result.text) {
-        throw new Error('Empty response received from Gemini.');
+        throw new Error('Empty response received from AI service.');
       }
       return JSON.parse(result.text);
     } catch (e: any) {
-      throw new BadRequestException(`Gemini CV Analysis failed: ${e?.message || e}`);
+      const errorMessage = e?.message || String(e);
+      if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
+        throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
+      }
+      throw new BadRequestException('AI CV Analysis failed. Please try again.');
     }
   }
 
@@ -204,11 +208,15 @@ export class AiService {
       });
 
       if (!result.text) {
-        throw new Error('Empty response received from Gemini.');
+        throw new Error('Empty response received from AI service.');
       }
       return JSON.parse(result.text);
     } catch (e: any) {
-      throw new BadRequestException(`Gemini CV Tailoring failed: ${e?.message || e}`);
+      const errorMessage = e?.message || String(e);
+      if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
+        throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
+      }
+      throw new BadRequestException('AI CV Tailoring failed. Please try again.');
     }
   }
 }
