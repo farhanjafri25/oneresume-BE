@@ -18,7 +18,7 @@ export class UploadController {
    * POST /api/upload
    *
    * Multipart form-data:
-   *   - file      : PDF file (required, max 10 MB)
+   *   - file      : PDF file (required, max 2 MB)
    *   - userId    : UUID
    *   - resumeId  : UUID
    *   - variantId : UUID
@@ -28,7 +28,7 @@ export class UploadController {
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+      limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
       fileFilter: (_req, file, cb) => {
         if (file.mimetype !== 'application/pdf') {
           return cb(new BadRequestException('Only PDF files are allowed'), false);
