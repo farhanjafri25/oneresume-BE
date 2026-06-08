@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Query, Req } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { PublicService } from './public.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -18,6 +18,36 @@ export class PublicController {
   ) {
     const meta = this.extractRequestMeta(req, forParam);
     return this.publicService.getLatest(username, filename, meta);
+  }
+
+  // GET /api/:username/:filename/download
+  @Get(':username/:filename/download')
+  async downloadLatest(
+    @Param('username') username: string,
+    @Param('filename') filename: string,
+    @Query('for') forParam: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const meta = this.extractRequestMeta(req, forParam);
+    const resolved = await this.publicService.trackDownload(username, filename, undefined, meta);
+    // Redirect the browser to the actual file URL to initiate the download
+    return res.redirect(302, resolved.fileUrl);
+  }
+
+  // GET /api/:username/:filename/:version/download
+  @Get(':username/:filename/:version/download')
+  async downloadSpecific(
+    @Param('username') username: string,
+    @Param('filename') filename: string,
+    @Param('version') version: string,
+    @Query('for') forParam: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const meta = this.extractRequestMeta(req, forParam);
+    const resolved = await this.publicService.trackDownload(username, filename, version, meta);
+    return res.redirect(302, resolved.fileUrl);
   }
 
   // GET /api/:username/:filename/:version  → specific version (e.g. v1)

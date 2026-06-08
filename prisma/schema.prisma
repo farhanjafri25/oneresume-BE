@@ -80,6 +80,7 @@ model ViewLog {
   userAgent     String?
   referer       String?
   label         String?  // Custom application label: e.g., "Google - Frontend"
+  action        String   @default("VIEW") // "VIEW" or "DOWNLOAD"
   viewedAt      DateTime @default(now())
 
   resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)

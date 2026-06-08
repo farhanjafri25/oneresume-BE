@@ -223,7 +223,7 @@ export class AuthService {
 
     try {
       await this.resend.emails.send({
-        from: 'OneResume <noreply@resend.dev>',
+        from: 'OneCV <hello@no-reply.onecv.co>',
         to: user.email,
         subject: 'Your new verification code',
         html: `<p>Your new verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,

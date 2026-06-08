@@ -112,21 +112,25 @@ export class ResumeService {
       orderBy: { viewedAt: 'desc' },
     });
 
+    const viewLogs = logs.filter((log) => log.action === 'VIEW');
+    const downloadLogs = logs.filter((log) => log.action === 'DOWNLOAD');
+
     // Calculate stats
-    const totalViews = logs.length;
-    const uniqueIps = new Set(logs.map((log) => log.ipAddress).filter(Boolean));
+    const totalViews = viewLogs.length;
+    const totalDownloads = downloadLogs.length;
+    const uniqueIps = new Set(viewLogs.map((log) => log.ipAddress).filter(Boolean));
     const uniqueViews = uniqueIps.size;
 
     // 1. Group Views by Referrer
     const referrers: Record<string, number> = {};
-    logs.forEach((log) => {
+    viewLogs.forEach((log) => {
       const ref = this.parseReferer(log.referer);
       referrers[ref] = (referrers[ref] || 0) + 1;
     });
 
     // 2. Group Views by Device Type
     let mobile = 0, desktop = 0, tablet = 0;
-    logs.forEach((log) => {
+    viewLogs.forEach((log) => {
       const ua = (log.userAgent || '').toLowerCase();
       if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
         mobile++;
@@ -145,7 +149,7 @@ export class ResumeService {
       const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
       timeline[dayKey] = 0;
     }
-    logs.forEach((log) => {
+    viewLogs.forEach((log) => {
       const dayKey = log.viewedAt.toISOString().split('T')[0];
       if (dayKey in timeline) {
         timeline[dayKey]++;
@@ -154,17 +158,17 @@ export class ResumeService {
 
     // 4. Group Views by Campaign/Role label
     const campaigns: Record<string, number> = {};
-    logs.forEach((log) => {
+    viewLogs.forEach((log) => {
       const label = log.label || 'Default / Generic Link';
       campaigns[label] = (campaigns[label] || 0) + 1;
     });
 
     return {
-      summary: { totalViews, uniqueViews, desktop, mobile, tablet },
+      summary: { totalViews, totalDownloads, uniqueViews, desktop, mobile, tablet },
       referrers: Object.entries(referrers).map(([source, count]) => ({ source, count })),
       timeline: Object.entries(timeline).map(([date, count]) => ({ date, count })),
       campaigns: Object.entries(campaigns).map(([label, count]) => ({ label, count })),
-      recentLogs: logs.slice(0, 15).map((log) => ({
+      recentLogs: viewLogs.slice(0, 15).map((log) => ({
         id: log.id,
         viewedAt: log.viewedAt,
         country: log.country,

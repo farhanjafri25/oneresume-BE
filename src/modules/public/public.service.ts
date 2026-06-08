@@ -61,7 +61,7 @@ export class PublicService {
         }
 
         if (meta) {
-          this.logViewAsync(variant.resumeId, variant.id, version.versionNumber, meta);
+          this.logViewAsync(variant.resumeId, variant.id, version.versionNumber, meta, 'VIEW');
         }
 
         return this.buildResponse(username, variant, version, variant.resume);
@@ -113,6 +113,7 @@ export class PublicService {
     variantId: string,
     versionNumber: number,
     meta: { country?: string; ip?: string; userAgent?: string; referer?: string; label?: string },
+    action: string = 'VIEW',
   ) {
     try {
       // Basic IP anonymizer (mask last octet for visitor privacy compliance)
@@ -131,11 +132,31 @@ export class PublicService {
           userAgent: meta.userAgent || null,
           referer: meta.referer || null,
           label: meta.label || null,
+          action,
         },
       });
     } catch (error) {
       console.error('Failed to log resume view:', error);
     }
+  }
+
+  async trackDownload(
+    username: string,
+    filename: string,
+    versionParam: string | number | undefined,
+    meta?: any,
+  ): Promise<ResolvedResume> {
+    const resolved = versionParam
+      ? await this.getSpecific(username, filename, versionParam, null) // Pass null meta to avoid duplicate VIEW log
+      : await this.getLatest(username, filename, null);
+    
+    // Log the download specifically
+    const { variant } = await this.resolveVariant(username, filename, resolved.variant);
+    if (meta) {
+      this.logViewAsync(variant.resumeId, variant.id, resolved.versionNumber, meta, 'DOWNLOAD');
+    }
+
+    return resolved;
   }
 
   // ─── helpers ────────────────────────────────────────────────────────────────
