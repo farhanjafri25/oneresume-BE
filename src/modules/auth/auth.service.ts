@@ -122,7 +122,7 @@ export class AuthService {
     // Send email via Resend
     try {
       await this.resend.emails.send({
-        from: 'OneResume <noreply@resend.dev>', // In production, use verified domain e.g. hello@yourdomain.com
+        from: 'OneResume <hello@no-reply.onecv.co>', // In production, use verified domain e.g. hello@yourdomain.com
         to: user.email,
         subject: 'Verify your OneResume account',
         html: `<p>Welcome to OneResume!</p><p>Your verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,
