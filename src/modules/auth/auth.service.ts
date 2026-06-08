@@ -17,6 +17,25 @@ import { Resend } from 'resend';
 
 const BCRYPT_ROUNDS = 12;
 
+const getOtpEmailTemplate = (otp: string) => `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 20px; color: #111827;">
+  <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+    <div style="padding: 32px; text-align: center;">
+      <h1 style="margin-top: 0; font-size: 24px; font-weight: 700; color: #111827;">Welcome to OneCV!</h1>
+      <p style="font-size: 16px; color: #4b5563; line-height: 1.5; margin-bottom: 24px;">
+        Thanks for signing up. Please use the verification code below to securely verify your email address.
+      </p>
+      <div style="background-color: #f3f4f6; padding: 16px 24px; border-radius: 6px; display: inline-block; letter-spacing: 4px; font-size: 28px; font-weight: 800; color: #4f46e5; margin-bottom: 24px;">
+        ${otp}
+      </div>
+      <p style="font-size: 14px; color: #6b7280; margin-bottom: 0;">
+        This code will expire in 15 minutes.<br/>If you didn't request this, you can safely ignore this email.
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
 @Injectable()
 export class AuthService {
   private readonly googleClient: OAuth2Client;
@@ -124,8 +143,8 @@ export class AuthService {
       await this.resend.emails.send({
         from: 'OneResume <hello@no-reply.onecv.co>', // In production, use verified domain e.g. hello@yourdomain.com
         to: user.email,
-        subject: 'Verify your OneResume account',
-        html: `<p>Welcome to OneResume!</p><p>Your verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,
+        subject: 'Verify your OneCV account',
+        html: getOtpEmailTemplate(rawOtp),
       });
     } catch (error) {
       console.error('Failed to send verification email', error);
@@ -226,7 +245,7 @@ export class AuthService {
         from: 'OneCV <hello@no-reply.onecv.co>',
         to: user.email,
         subject: 'Your new verification code',
-        html: `<p>Your new verification code is: <strong>${rawOtp}</strong></p><p>This code will expire in 15 minutes.</p>`,
+        html: getOtpEmailTemplate(rawOtp),
       });
     } catch (error) {
       console.error('Failed to resend verification email', error);
