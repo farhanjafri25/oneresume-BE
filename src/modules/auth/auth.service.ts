@@ -108,16 +108,47 @@ export class AuthService {
   // ─── Signup ──────────────────────────────────────────────────────────────────
 
   async signup(dto: SignupDto) {
-    // Uniqueness checks
-    const existing = await this.prisma.user.findFirst({
-      where: { OR: [{ email: dto.email }, { username: dto.username }] },
-    });
-    if (existing) {
-      throw new ConflictException(
-        existing.email === dto.email
-          ? 'Email already in use'
-          : 'Username already taken',
-      );
+    const existingEmail = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existingUsername = await this.prisma.user.findUnique({ where: { username: dto.username } });
+
+    if (existingUsername && existingUsername.id !== existingEmail?.id) {
+      throw new ConflictException('Username already taken');
+    }
+
+    if (existingEmail) {
+      if (existingEmail.isVerified) {
+        throw new ConflictException('Email already in use');
+      }
+
+      // Unverified email: resend OTP and update details
+      const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+      const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedOtp = await bcrypt.hash(rawOtp, BCRYPT_ROUNDS);
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+      await this.prisma.user.update({
+        where: { id: existingEmail.id },
+        data: {
+          username: dto.username, // update username in case they changed it
+          password: hashedPassword,
+          otpCode: hashedOtp,
+          otpExpiresAt: expiresAt,
+        },
+      });
+
+      // Send email via Resend
+      try {
+        await this.resend.emails.send({
+          from: 'OneResume <hello@no-reply.onecv.co>',
+          to: existingEmail.email,
+          subject: 'Verify your OneCV account',
+          html: getOtpEmailTemplate(rawOtp),
+        });
+      } catch (error) {
+        console.error('Failed to send verification email', error);
+      }
+
+      return { message: 'OTP sent to email', requiresOtp: true, email: existingEmail.email };
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
