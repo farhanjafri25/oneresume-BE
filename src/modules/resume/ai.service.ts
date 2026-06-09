@@ -104,6 +104,85 @@ export class AiService {
     }
   }
 
+  async generalResumeScan(pdfUrl: string) {
+    const apiKey = this.config.get<string>('GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new BadRequestException('GEMINI_API_KEY is not configured on the server. Please add it to your .env file.');
+    }
+    
+    // 1. Fetch PDF file as a buffer
+    let pdfBuffer: Buffer;
+    try {
+      const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+      pdfBuffer = Buffer.from(response.data);
+    } catch (error) {
+      throw new BadRequestException(`Failed to download resume PDF from: ${pdfUrl}. Please verify the PDF link is accessible.`);
+    }
+
+    // 2. Prepare the prompt
+    const prompt = `
+      You are an expert technical recruiter and ATS scanner.
+      Analyze the attached candidate resume PDF for general ATS compatibility and structural quality.
+      
+      Evaluate:
+      1. Overall ATS parsability score (0-100). Be realistic and objective.
+      2. A brief executive summary of the resume's strengths and weaknesses.
+      3. Parsability status (e.g., "Excellent", "Good", "Needs Work") and a short explanation.
+      4. Section Formatting status (e.g., "Good - 91%") and explanation (are headers standard? bullet points used correctly?).
+      5. Action verbs usage (count or impact analysis, e.g. "High Impact - 24 verbs").
+      6. Missing contact info (check for Email, Phone, LinkedIn). Mention what is complete or missing.
+    `;
+
+    // 3. Call Gemini 1.5 Flash with structured JSON schema
+    try {
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  data: pdfBuffer.toString('base64'),
+                  mimeType: 'application/pdf',
+                },
+              },
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              score: { type: Type.INTEGER, description: 'ATS parsability score from 0 to 100' },
+              summary: { type: Type.STRING, description: '2-3 sentence executive summary of strengths and weaknesses' },
+              parsability: { type: Type.STRING, description: 'Parsability status and explanation' },
+              formatting: { type: Type.STRING, description: 'Section formatting status and explanation' },
+              actionVerbs: { type: Type.STRING, description: 'Analysis of action verbs used' },
+              missingContactInfo: { type: Type.STRING, description: 'Contact information completeness' },
+            },
+            required: ['score', 'summary', 'parsability', 'formatting', 'actionVerbs', 'missingContactInfo'],
+          },
+        },
+      });
+
+      if (!result.text) {
+        throw new Error('Empty response received from AI service.');
+      }
+      return JSON.parse(result.text);
+    } catch (e: any) {
+      const errorMessage = e?.message || String(e);
+      if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
+        throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
+      }
+      throw new BadRequestException('AI General CV Scan failed. Please try again.');
+    }
+  }
+
   async tailorResumeAgainstJd(pdfUrl: string, jd: string) {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {

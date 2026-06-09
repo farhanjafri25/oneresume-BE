@@ -193,6 +193,20 @@ export class ResumeService {
     return this.aiService.reviewResumeAgainstJd(latestVersion.fileUrl, jd);
   }
 
+  async generalScanResume(resumeId: string, userId: string) {
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      include: { variants: { include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } } },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    const defaultVariant = resume.variants.find((v) => v.slug === 'default');
+    const latestVersion = defaultVariant?.versions?.[0];
+    if (!latestVersion) throw new BadRequestException('No PDF uploaded yet. Please upload a PDF before using the AI Reviewer.');
+
+    return this.aiService.generalResumeScan(latestVersion.fileUrl);
+  }
+
   async tailorResume(resumeId: string, jd: string, userId: string) {
     const resume = await this.prisma.resume.findFirst({
       where: { id: resumeId, userId },

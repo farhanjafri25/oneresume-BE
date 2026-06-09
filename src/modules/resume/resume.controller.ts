@@ -53,6 +53,14 @@ export class ResumeController {
     return this.resumeService.reviewResume(id, dto.jd, user.id);
   }
 
+  @Post(':id/general-scan')
+  generalScan(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resumeService.generalScanResume(id, user.id);
+  }
+
   @Post(':id/tailor')
   tailor(
     @Param('id') id: string,
