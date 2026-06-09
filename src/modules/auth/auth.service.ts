@@ -139,7 +139,7 @@ export class AuthService {
       // Send email via Resend
       try {
         await this.resend.emails.send({
-          from: 'OneResume <hello@no-reply.onecv.co>',
+          from: 'OneCV <hello@no-reply.onecv.co>',
           to: existingEmail.email,
           subject: 'Verify your OneCV account',
           html: getOtpEmailTemplate(rawOtp),
@@ -172,7 +172,7 @@ export class AuthService {
     // Send email via Resend
     try {
       await this.resend.emails.send({
-        from: 'OneResume <hello@no-reply.onecv.co>', // In production, use verified domain e.g. hello@yourdomain.com
+        from: 'OneCV <hello@no-reply.onecv.co>', // In production, use verified domain e.g. hello@yourdomain.com
         to: user.email,
         subject: 'Verify your OneCV account',
         html: getOtpEmailTemplate(rawOtp),
