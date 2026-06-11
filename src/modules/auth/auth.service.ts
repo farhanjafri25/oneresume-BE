@@ -53,7 +53,7 @@ export class AuthService {
 
   // ─── Google Login ─────────────────────────────────────────────────────────────
 
-  async googleLogin(googleToken: string) {
+  async googleLogin(googleToken: string, isSignUp = false) {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken: googleToken,
@@ -73,6 +73,10 @@ export class AuthService {
       });
 
       if (!user) {
+        if (!isSignUp) {
+          throw new BadRequestException('No account associated with this email. Please sign up first.');
+        }
+
         // Auto-generate a unique username
         const baseUsername = (name || email.split('@')[0])
           .toLowerCase()
@@ -99,8 +103,11 @@ export class AuthService {
 
       return this.buildTokenResponse(user);
     } catch (error) {
+      if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException(
-        error instanceof UnauthorizedException ? error.message : 'Google authentication failed',
+        error instanceof Error ? error.message : 'Google authentication failed',
       );
     }
   }

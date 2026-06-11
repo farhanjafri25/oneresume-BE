@@ -45,7 +45,7 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   googleLogin(@Body() dto: GoogleLoginDto) {
-    return this.authService.googleLogin(dto.googleToken);
+    return this.authService.googleLogin(dto.googleToken, dto.isSignUp);
   }
 
   /**
