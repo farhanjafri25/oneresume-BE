@@ -36,10 +36,14 @@ export class AiService {
       ${jd}
       
       Evaluate:
-      1. Overall match score (0-100). Be realistic, strict, and objective (like a professional ATS scanner).
+      1. Overall match score (0-100). Be extremely critical, strict, and objective (like a professional ATS scanner):
+         - Start at 100 and deduct 10-15 points for every critical required skill or core technology missing.
+         - Deduct 10-15 points if years of experience or seniority level doesn't align with the JD requirements.
+         - Deduct 5-10 points if key certifications or education requirements are missing.
+         - A score above 80 should represent a near-perfect candidate. An average candidate with some missing skills should score 50-65. A weak match should score below 40.
       2. Matching skills found in both the resume and the JD.
       3. Missing skills or keywords mentioned in the JD but not found in the resume.
-      4. A brief, encouraging executive summary of the alignment.
+      4. A brief, encouraging executive summary of the alignment, highlighting both key strengths and main gaps.
       5. Practical, actionable bullet-point recommendations to improve the resume for this specific role.
     `;
 
@@ -97,6 +101,20 @@ export class AiService {
       return JSON.parse(result.text);
     } catch (e: any) {
       const errorMessage = e?.message || String(e);
+      const mistralApiKey = this.config.get<string>('MISTRAL_API_KEY');
+      if (mistralApiKey) {
+        try {
+          return await this.callMistral(pdfUrl, prompt, {
+            score: 'integer (ATS match score from 0 to 100)',
+            summary: 'string (2-3 sentence executive alignment summary)',
+            matchingSkills: 'array of strings (key matching skills found)',
+            missingSkills: 'array of strings (important skills/keywords mentioned in JD but missing in CV)',
+            recommendations: 'array of strings (step-by-step actionable recommendations to optimize the CV)'
+          });
+        } catch (mistralError: any) {
+          throw new BadRequestException(`Both Gemini and Mistral fallback failed. Gemini Error: ${errorMessage}. Mistral Error: ${mistralError?.message}`);
+        }
+      }
       if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
         throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
       }
@@ -125,8 +143,13 @@ export class AiService {
       Analyze the attached candidate resume PDF for general ATS compatibility and structural quality.
       
       Evaluate:
-      1. Overall ATS parsability score (0-100). Be realistic and objective.
-      2. A brief executive summary of the resume's strengths and weaknesses.
+      1. Overall ATS parsability score (0-100). Be extremely critical and rigorous. Start at 100 and apply strict deductions:
+         - Deduct 15 points if the format uses non-standard headings, complex tables, graphics/images, or multi-column layouts (which disrupt standard ATS parsers).
+         - Deduct 15 points if work experience bullet points do not show quantitative, metrics-driven achievements (e.g. lack of percentages, user growth numbers, tool names, or performance stats).
+         - Deduct 10 points if there is a low usage or absence of active action verbs.
+         - Deduct 10 points if vital contact info (Email, Phone, or LinkedIn URL) is missing.
+         - An excellent resume with standard format and metrics should score 80-90. Reserve scores above 90 only for absolute best-practice, perfect templates. A generic or poorly structured resume should score 40-60.
+      2. A brief executive summary of the resume's structural strengths and weaknesses.
       3. Parsability status (e.g., "Excellent", "Good", "Needs Work") and a short explanation.
       4. Section Formatting status (e.g., "Good - 91%") and explanation (are headers standard? bullet points used correctly?).
       5. Action verbs usage (count or impact analysis, e.g. "High Impact - 24 verbs").
@@ -176,6 +199,21 @@ export class AiService {
       return JSON.parse(result.text);
     } catch (e: any) {
       const errorMessage = e?.message || String(e);
+      const mistralApiKey = this.config.get<string>('MISTRAL_API_KEY');
+      if (mistralApiKey) {
+        try {
+          return await this.callMistral(pdfUrl, prompt, {
+            score: 'integer (ATS parsability score from 0 to 100)',
+            summary: 'string (2-3 sentence executive summary of strengths and weaknesses)',
+            parsability: 'string (parsability status and explanation)',
+            formatting: 'string (section formatting status and explanation)',
+            actionVerbs: 'string (analysis of action verbs used)',
+            missingContactInfo: 'string (contact info completeness)'
+          });
+        } catch (mistralError: any) {
+          throw new BadRequestException(`Both Gemini and Mistral fallback failed. Gemini Error: ${errorMessage}. Mistral Error: ${mistralError?.message}`);
+        }
+      }
       if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
         throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
       }
@@ -292,10 +330,129 @@ export class AiService {
       return JSON.parse(result.text);
     } catch (e: any) {
       const errorMessage = e?.message || String(e);
+      const mistralApiKey = this.config.get<string>('MISTRAL_API_KEY');
+      if (mistralApiKey) {
+        try {
+          return await this.callMistral(pdfUrl, prompt, {
+            name: 'string (Candidates full name)',
+            title: 'string (Professional title aligned with the JD)',
+            email: 'string (Contact email)',
+            phone: 'string (Contact phone)',
+            location: 'string (Candidate location City, State/Country)',
+            linkedin: 'string (LinkedIn URL or other link)',
+            summary: 'string (Tailored 2-3 sentence professional summary)',
+            skills: 'string (Comma-separated list of technologies and skills)',
+            experiences: [
+              {
+                job_title: 'string (Job title / role)',
+                company: 'string (Company name)',
+                job_dates: 'string (Dates worked e.g., June 2022 - Present)',
+                job_location: 'string (Job location City, State)',
+                job_bullet_1: 'string (First optimized bullet point)',
+                job_bullet_2: 'string (Second optimized bullet point)',
+                job_bullet_3: 'string (Third optimized bullet point)'
+              }
+            ],
+            education: [
+              {
+                degree: 'string (Degree received)',
+                institution: 'string (University/College name)',
+                edu_date: 'string (Graduation date or range)',
+                edu_location: 'string (School location)'
+              }
+            ]
+          });
+        } catch (mistralError: any) {
+          throw new BadRequestException(`Both Gemini and Mistral fallback failed. Gemini Error: ${errorMessage}. Mistral Error: ${mistralError?.message}`);
+        }
+      }
       if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
         throw new BadRequestException('Our AI servers are experiencing a high demand. Please try again later.');
       }
       throw new BadRequestException('AI CV Tailoring failed. Please try again.');
+    }
+  }
+
+  private async callMistral(pdfUrl: string, prompt: string, schema: any): Promise<any> {
+    const mistralApiKey = this.config.get<string>('MISTRAL_API_KEY');
+    if (!mistralApiKey) {
+      throw new Error('MISTRAL_API_KEY is not configured in environment.');
+    }
+
+    // 1. Perform OCR using Mistral OCR API
+    let extractedText = '';
+    try {
+      const ocrResponse = await axios.post(
+        'https://api.mistral.ai/v1/ocr',
+        {
+          model: 'mistral-ocr-latest',
+          document: {
+            type: 'document_url',
+            document_url: pdfUrl,
+          },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mistralApiKey}`,
+          },
+        }
+      );
+
+      if (ocrResponse.data?.pages && ocrResponse.data.pages.length > 0) {
+        extractedText = ocrResponse.data.pages.map((p: any) => p.markdown || p.text || '').join('\n');
+      } else {
+        throw new Error('No text content could be extracted from the PDF.');
+      }
+    } catch (ocrError: any) {
+      const details = ocrError?.response?.data?.message || ocrError?.message || String(ocrError);
+      throw new Error(`Mistral OCR Service error: ${details}`);
+    }
+
+    // 2. Call Chat Completion to process the extracted text with JSON response format
+    try {
+      const systemPrompt = `
+        You are an expert technical recruiter and resume analyzer.
+        You must analyze the text of the candidate's resume and return a valid JSON object matching the requested schema.
+        Do not include any explanation, markdown formatting blocks (like \`\`\`json), or text outside the JSON object.
+        
+        Expected Schema structure:
+        ${JSON.stringify(schema, null, 2)}
+      `;
+
+      const chatResponse = await axios.post(
+        'https://api.mistral.ai/v1/chat/completions',
+        {
+          model: 'mistral-large-latest',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+            {
+              role: 'user',
+              content: `Resume text:\n${extractedText}\n\nTask instructions:\n${prompt}\n\nStrictly return ONLY a valid JSON object matching the schema.`,
+            },
+          ],
+          response_format: { type: 'json_object' },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mistralApiKey}`,
+          },
+        }
+      );
+
+      const content = chatResponse.data?.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error('Empty response received from Mistral Chat Completions.');
+      }
+
+      return JSON.parse(content);
+    } catch (chatError: any) {
+      const details = chatError?.response?.data?.message || chatError?.message || String(chatError);
+      throw new Error(`Mistral Chat Completion error: ${details}`);
     }
   }
 }
