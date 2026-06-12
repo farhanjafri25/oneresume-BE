@@ -302,6 +302,7 @@ export class AuthService {
         username: true,
         email: true,
         createdAt: true,
+        onboardedAt: true, // ISO string or null — FE uses this as the onboarding source of truth
         // password is intentionally excluded
       },
     });
@@ -309,9 +310,30 @@ export class AuthService {
     return user;
   }
 
+  // ─── Mark onboarding complete ─────────────────────────────────────────────────
+
+  /**
+   * Idempotently mark the user as onboarded. Sets onboardedAt = now() only if it
+   * is currently null, so re-calling never overwrites the original timestamp.
+   * Returns the updated user in the same shape as getMe().
+   */
+  async markOnboarded(userId: string) {
+    await this.prisma.user.updateMany({
+      where: { id: userId, onboardedAt: null },
+      data: { onboardedAt: new Date() },
+    });
+
+    return this.getMe(userId);
+  }
+
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  private buildTokenResponse(user: { id: string; username: string; email: string }) {
+  private buildTokenResponse(user: {
+    id: string;
+    username: string;
+    email: string;
+    onboardedAt?: Date | null;
+  }) {
     const payload: JwtPayload = {
       sub: user.id,
       username: user.username,
@@ -326,6 +348,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
+        onboardedAt: user.onboardedAt ?? null,
       },
     };
   }
