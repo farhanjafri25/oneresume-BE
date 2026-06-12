@@ -13,6 +13,7 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   username  String   @unique
+  name      String?  // full display name (e.g. from Google profile); null for email/password signups
   email     String   @unique
   password       String?  // bcrypt hash — never returned in API responses (optional for OAuth users)
   isVerified     Boolean  @default(false)
