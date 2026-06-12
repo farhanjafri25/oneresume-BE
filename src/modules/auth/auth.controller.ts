@@ -81,4 +81,16 @@ export class AuthController {
   getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user.id);
   }
+
+  /**
+   * POST /api/auth/onboarded
+   * Protected — requires valid Bearer token
+   * Idempotently marks onboarding complete (sets onboardedAt = now() only if null)
+   * and returns the updated user (same shape as GET /auth/me).
+   */
+  @Post('onboarded')
+  @HttpCode(HttpStatus.OK)
+  markOnboarded(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.markOnboarded(user.id);
+  }
 }
