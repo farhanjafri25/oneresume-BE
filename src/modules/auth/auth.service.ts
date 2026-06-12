@@ -95,9 +95,16 @@ export class AuthService {
           data: {
             email,
             username,
+            name: name ?? null, // full display name from Google profile
             password: null, // Null is allowed now
             isVerified: true, // Google accounts are implicitly verified
           },
+        });
+      } else if (name && name !== user.name) {
+        // Keep the stored display name in sync with the Google profile on login
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { name },
         });
       }
 
@@ -300,6 +307,7 @@ export class AuthService {
       select: {
         id: true,
         username: true,
+        name: true,
         email: true,
         createdAt: true,
         onboardedAt: true, // ISO string or null — FE uses this as the onboarding source of truth
@@ -331,6 +339,7 @@ export class AuthService {
   private buildTokenResponse(user: {
     id: string;
     username: string;
+    name?: string | null;
     email: string;
     onboardedAt?: Date | null;
   }) {
@@ -347,6 +356,7 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
+        name: user.name ?? null,
         email: user.email,
         onboardedAt: user.onboardedAt ?? null,
       },
