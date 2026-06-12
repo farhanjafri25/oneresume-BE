@@ -64,6 +64,7 @@ model Version {
   fileUrl       String   // UploadThing file URL
   publicId      String   // UploadThing file key
   createdAt     DateTime @default(now())
+  atsReport     Json?    // Cached general ATS scan report
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 

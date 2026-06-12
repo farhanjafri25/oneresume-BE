@@ -198,6 +198,7 @@ export class AiService {
       }
       return JSON.parse(result.text);
     } catch (e: any) {
+      console.log(`inside catch block for generalResumeScan. Error: ${e}`);
       const errorMessage = e?.message || String(e);
       const mistralApiKey = this.config.get<string>('MISTRAL_API_KEY');
       if (mistralApiKey) {

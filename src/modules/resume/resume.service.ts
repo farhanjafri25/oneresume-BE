@@ -211,7 +211,20 @@ export class ResumeService {
     const latestVersion = defaultVariant?.versions?.[0];
     if (!latestVersion) throw new BadRequestException('No PDF uploaded yet. Please upload a PDF before using the AI Reviewer.');
 
-    return this.aiService.generalResumeScan(latestVersion.fileUrl);
+    // If a scan report is already cached on this version, return it directly
+    if (latestVersion.atsReport) {
+      return latestVersion.atsReport;
+    }
+
+    const scanResult = await this.aiService.generalResumeScan(latestVersion.fileUrl);
+
+    // Cache the result in the database on this specific Version
+    await this.prisma.version.update({
+      where: { id: latestVersion.id },
+      data: { atsReport: scanResult },
+    });
+
+    return scanResult;
   }
 
   async tailorResume(resumeId: string, jd: string, userId: string) {
