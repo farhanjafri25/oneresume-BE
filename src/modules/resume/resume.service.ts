@@ -143,14 +143,21 @@ export class ResumeService {
 
     // 3. Group Views by Day (Last 30 Days Timeline)
     const timeline: Record<string, number> = {};
+    const tzFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dayKey = tzFormatter.format(date); // YYYY-MM-DD in IST
       timeline[dayKey] = 0;
     }
     viewLogs.forEach((log) => {
-      const dayKey = log.viewedAt.toISOString().split('T')[0];
+      const dayKey = tzFormatter.format(log.viewedAt); // YYYY-MM-DD in IST
       if (dayKey in timeline) {
         timeline[dayKey]++;
       }

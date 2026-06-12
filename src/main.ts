@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+process.env.TZ = 'Asia/Kolkata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
