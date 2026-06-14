@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/commo
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { CheckEmailDto } from './dto/check-email.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
@@ -22,6 +23,22 @@ export class AuthController {
   @Post('signup')
   signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
+  }
+
+  /**
+   * POST /api/auth/check-email
+   * Public — no token required
+   * Powers the email-first login UI: decides whether to show the password
+   * (sign-in) step or the signup step for a given email.
+   * Returns: { exists: boolean } — true only for a verified account, so that
+   * unverified / half-signed-up emails are routed back through signup (which
+   * resends their OTP) instead of a password step that can't complete.
+   */
+  @Public()
+  @Post('check-email')
+  @HttpCode(HttpStatus.OK)
+  checkEmail(@Body() dto: CheckEmailDto) {
+    return this.authService.checkEmail(dto);
   }
 
   /**
