@@ -10,6 +10,7 @@ import { VariantModule } from './modules/variant/variant.module';
 import { VersionModule } from './modules/version/version.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { PublicModule } from './modules/public/public.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PublicModule } from './modules/public/public.module';
     VersionModule,
     UploadModule,
     PublicModule,
+    AnalyticsModule,
   ],
   providers: [
     {

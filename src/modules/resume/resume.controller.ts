@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ResumeService } from './resume.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { UpdateResumeDto } from './dto/update-resume.dto';
 import { ReviewResumeDto } from './dto/review-resume.dto';
 import { TailorResumeDto } from './dto/tailor-resume.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
@@ -82,6 +83,15 @@ export class ResumeController {
     @Body() dto: { themeId: string; tailoredData: any },
   ) {
     return this.resumeService.previewResume(dto.themeId, dto.tailoredData);
+  }
+
+  @Patch(':id')
+  rename(
+    @Param('id') id: string,
+    @Body() dto: UpdateResumeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resumeService.rename(id, user.id, dto);
   }
 
   @Delete(':id')

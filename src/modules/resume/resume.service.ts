@@ -5,7 +5,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  buildTimeline,
+  classifyDevice,
+  parseBrowser,
+  parseReferer,
+  rangeToStartDate,
+} from '../analytics/analytics.util';
 import { CreateResumeDto } from './dto/create-resume.dto';
+import { UpdateResumeDto } from './dto/update-resume.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UploadService } from '../upload/upload.service';
 import { AiService } from './ai.service';
@@ -64,11 +72,26 @@ export class ResumeService {
   }
 
   async findByUserId(userId: string) {
-    return this.prisma.resume.findMany({
+    const resumes = await this.prisma.resume.findMany({
       where: { userId },
       include: { variants: { include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } } },
       orderBy: { createdAt: 'desc' },
     });
+
+    // One aggregate query attaches a lightweight view count per card (not N+1).
+    const viewCounts = await this.prisma.viewLog.groupBy({
+      by: ['resumeId'],
+      where: { resume: { userId }, action: 'VIEW' },
+      _count: { _all: true },
+    });
+    const countByResume = new Map(
+      viewCounts.map((row) => [row.resumeId, row._count._all]),
+    );
+
+    return resumes.map((resume) => ({
+      ...resume,
+      totalViews: countByResume.get(resume.id) ?? 0,
+    }));
   }
 
   async findById(id: string) {
@@ -124,44 +147,22 @@ export class ResumeService {
     // 1. Group Views by Referrer
     const referrers: Record<string, number> = {};
     viewLogs.forEach((log) => {
-      const ref = this.parseReferer(log.referer);
+      const ref = parseReferer(log.referer);
       referrers[ref] = (referrers[ref] || 0) + 1;
     });
 
     // 2. Group Views by Device Type
     let mobile = 0, desktop = 0, tablet = 0;
     viewLogs.forEach((log) => {
-      const ua = (log.userAgent || '').toLowerCase();
-      if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
-        mobile++;
-      } else if (ua.includes('ipad') || ua.includes('tablet')) {
-        tablet++;
-      } else {
-        desktop++;
-      }
+      const device = classifyDevice(log.userAgent);
+      if (device === 'mobile') mobile++;
+      else if (device === 'tablet') tablet++;
+      else desktop++;
     });
 
     // 3. Group Views by Day (Last 30 Days Timeline)
-    const timeline: Record<string, number> = {};
-    const tzFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dayKey = tzFormatter.format(date); // YYYY-MM-DD in IST
-      timeline[dayKey] = 0;
-    }
-    viewLogs.forEach((log) => {
-      const dayKey = tzFormatter.format(log.viewedAt); // YYYY-MM-DD in IST
-      if (dayKey in timeline) {
-        timeline[dayKey]++;
-      }
-    });
+    const timelineStart = rangeToStartDate('30d')!;
+    const timeline = buildTimeline(viewLogs, timelineStart, new Date());
 
     // 4. Group Views by Campaign/Role label
     const campaigns: Record<string, number> = {};
@@ -173,17 +174,32 @@ export class ResumeService {
     return {
       summary: { totalViews, totalDownloads, uniqueViews, desktop, mobile, tablet },
       referrers: Object.entries(referrers).map(([source, count]) => ({ source, count })),
-      timeline: Object.entries(timeline).map(([date, count]) => ({ date, count })),
+      timeline,
       campaigns: Object.entries(campaigns).map(([label, count]) => ({ label, count })),
       recentLogs: viewLogs.slice(0, 15).map((log) => ({
         id: log.id,
         viewedAt: log.viewedAt,
         country: log.country,
-        referer: this.parseReferer(log.referer),
-        browser: this.parseBrowser(log.userAgent),
+        referer: parseReferer(log.referer),
+        browser: parseBrowser(log.userAgent),
         label: log.label,
       })),
     };
+  }
+
+  async rename(resumeId: string, userId: string, dto: UpdateResumeDto) {
+    // Ownership check before mutating.
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    await this.prisma.resume.update({
+      where: { id: resumeId },
+      data: { title: dto.title },
+    });
+
+    return this.findById(resumeId);
   }
 
   async reviewResume(resumeId: string, jd: string, userId: string) {
@@ -295,29 +311,5 @@ export class ResumeService {
   previewResume(themeId: string, tailoredData: any) {
     const html = this.pdfGeneratorService.compileHtml(themeId, tailoredData);
     return { html };
-  }
-
-  private parseReferer(referer: string | null): string { 
-    if (!referer) return 'Direct / Email';
-    const url = referer.toLowerCase();
-    if (url.includes('linkedin')) return 'LinkedIn';
-    if (url.includes('indeed')) return 'Indeed';
-    if (url.includes('github')) return 'GitHub';
-    if (url.includes('google')) return 'Google Search';
-    try {
-      return new URL(referer).hostname || 'Other';
-    } catch {
-      return 'Other';
-    }
-  }
-
-  private parseBrowser(ua: string | null): string {
-    if (!ua) return 'Unknown';
-    const lowercase = ua.toLowerCase();
-    if (lowercase.includes('chrome')) return 'Chrome';
-    if (lowercase.includes('safari')) return 'Safari';
-    if (lowercase.includes('firefox')) return 'Firefox';
-    if (lowercase.includes('edge')) return 'Edge';
-    return 'Other';
   }
 }
