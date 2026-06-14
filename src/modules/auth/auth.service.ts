@@ -10,6 +10,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { CheckEmailDto } from './dto/check-email.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtPayload } from './auth.types';
@@ -117,6 +118,33 @@ export class AuthService {
         error instanceof Error ? error.message : 'Google authentication failed',
       );
     }
+  }
+
+  // ─── Email existence check (email-first login UI) ─────────────────────────────
+
+  /**
+   * Reports whether an email belongs to an account that can sign in with a
+   * password step. We deliberately key on `isVerified`, not mere record
+   * existence, and look the email up exactly the way login()/signup() do (no
+   * normalization) so the answer always matches what those endpoints will do:
+   *
+   *   - Verified account            → exists:true  → FE shows password step → login()
+   *   - Unverified / half-signed-up → exists:false → FE shows signup step → signup()
+   *                                                   re-sends OTP and renders the
+   *                                                   verify step (no dead end)
+   *   - No record                   → exists:false → FE shows signup step
+   *
+   * Google-only accounts are verified, so they map to exists:true; entering a
+   * password there yields login()'s "different login method" message, and the
+   * user can switch back to the email step to use Google.
+   */
+  async checkEmail(dto: CheckEmailDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { isVerified: true },
+    });
+
+    return { exists: Boolean(user?.isVerified) };
   }
 
   // ─── Signup ──────────────────────────────────────────────────────────────────
