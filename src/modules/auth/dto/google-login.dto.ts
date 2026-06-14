@@ -4,8 +4,4 @@ export class GoogleLoginDto {
   @IsNotEmpty()
   @IsString()
   googleToken: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isSignUp?: boolean;
 }

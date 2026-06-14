@@ -54,7 +54,7 @@ export class AuthService {
 
   // ─── Google Login ─────────────────────────────────────────────────────────────
 
-  async googleLogin(googleToken: string, isSignUp = false) {
+  async googleLogin(googleToken: string) {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken: googleToken,
@@ -74,10 +74,6 @@ export class AuthService {
       });
 
       if (!user) {
-        if (!isSignUp) {
-          throw new BadRequestException('No account associated with this email. Please sign up first.');
-        }
-
         // Auto-generate a unique username
         const baseUsername = (name || email.split('@')[0])
           .toLowerCase()
